@@ -63,7 +63,8 @@ venture-hack/
 │       └── circular_buffer.py
 └── examples/
     ├── basic_reading.py        # Streams raw RED & IR optical readings
-    └── heart_rate_bpm.py       # Live BPM estimation & pulse detection
+    ├── heart_rate_bpm.py       # Live BPM estimation & pulse detection
+    └── leaf_health_ndvi.py     # Plant leaf health & chlorophyll (NDVI) analyzer
 ```
 
 ---
@@ -131,9 +132,20 @@ ampy run examples/heart_rate_bpm.py
 ```text
 Platform: esp8266 | SDA=Pin(4), SCL=Pin(5)
 Detected Sensor: MAX30100 (Part ID: 0x11)
-Place your finger gently over the sensor. Calculating BPM every 2 seconds...
-Heart Rate: 72 BPM
-Heart Rate: 74 BPM
+Sensor initialized. Calculating BPM and outputting raw data every 2 seconds...
+[RAW DUMP] IR: 41540 | RED: 50668 | Heart Rate: 96 BPM
+```
+
+### 3. Plant Leaf Health & Chlorophyll (NDVI) Analyzer
+Analyzes leaf chlorophyll content and tissue vitality using optical reflectance ($660\text{ nm}$ Red vs $880\text{ nm}$ NIR):
+```bash
+ampy run examples/leaf_health_ndvi.py
+```
+*Output sample:*
+```text
+Platform: esp8266 | SDA=Pin(4), SCL=Pin(5)
+Detected Sensor: MAX30100 (Part ID: 0x11)
+[LEAF DUMP] IR: 32410 | RED:  7150 | NDVI: +0.638 | RVI: 4.53 | SPAD~: 15.1 | Healthy (High Chlorophyll)
 ```
 
 ---
