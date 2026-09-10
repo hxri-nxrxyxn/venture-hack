@@ -27,7 +27,13 @@ def main():
         freq=100000
     )
 
-    devices = i2c.scan()
+    devices = []
+    for _ in range(5):
+        devices = i2c.scan()
+        if 0x57 in devices:
+            break
+        time.sleep_ms(50)
+
     print("I2C Bus Scan:", [hex(d) for d in devices])
 
     if 0x57 not in devices:

@@ -102,11 +102,15 @@ class MAX30100:
             w = self.i2c.readfrom_mem(self.address, FIFO_WR_PTR, 1)[0]
             r = self.i2c.readfrom_mem(self.address, FIFO_RD_PTR, 1)[0]
             num_samples = (w - r) & 0x0F
+            if num_samples == 0:
+                ovr = self.i2c.readfrom_mem(self.address, OVR_COUNTER, 1)[0]
+                if ovr > 0:
+                    num_samples = 16
             if num_samples > 0:
-                for _ in range(num_samples):
-                    b = self.i2c.readfrom_mem(self.address, FIFO_DATA, 4)
-                    ir = (b[0] << 8) | b[1]
-                    red = (b[2] << 8) | b[3]
+                b = self.i2c.readfrom_mem(self.address, FIFO_DATA, num_samples * 4)
+                for i in range(0, len(b), 4):
+                    ir = (b[i] << 8) | b[i+1]
+                    red = (b[i+2] << 8) | b[i+3]
                     samples.append((ir, red))
         except OSError:
             pass
