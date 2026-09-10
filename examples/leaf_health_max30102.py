@@ -11,7 +11,7 @@ import time
 import math
 import gc
 from machine import Pin, SoftI2C
-from max30102 import MAX30102, MAX30105_PULSE_AMP_LOW, MAX30105_PULSE_AMP_MEDIUM
+from max30102 import MAX30102, MAX30105_PULSE_AMP_HIGH
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 # Optical normalization factor (ratio of IR to RED sensitivity on white reference)
@@ -90,8 +90,8 @@ def main():
     # 200 Hz sampling with 4x FIFO averaging -> 50 effective samples/sec
     sensor.set_sample_rate(200)
     sensor.set_fifo_average(4)
-    # LOW pulse amplitude (~6.4mA) prevents photodiode saturation on reflective leaf surfaces
-    sensor.set_active_leds_amplitude(MAX30105_PULSE_AMP_LOW)
+    # Maximum pulse amplitude (0xFF = 50.0mA) for deep optical penetration
+    sensor.set_active_leds_amplitude(0xFF)
 
     try:
         temp = sensor.read_temperature()
@@ -113,13 +113,16 @@ def main():
     ref_time = time.ticks_ms()
 
     while True:
-        sensor.check()
-        while sensor.available():
-            red = sensor.pop_red_from_storage()
-            ir = sensor.pop_ir_from_storage()
-            ir_acc += ir
-            red_acc += red
-            count += 1
+        try:
+            sensor.check()
+            while sensor.available():
+                red = sensor.pop_red_from_storage()
+                ir = sensor.pop_ir_from_storage()
+                ir_acc += ir
+                red_acc += red
+                count += 1
+        except OSError:
+            time.sleep_ms(10)
 
         now = time.ticks_ms()
         if time.ticks_diff(now, ref_time) >= REPORT_INTERVAL_MS and count > 0:
