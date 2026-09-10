@@ -13,7 +13,7 @@ from max30102 import MAX30102
 from umqtt.simple import MQTTClient
 
 # ── Configuration ────────────────────────────────────────────────────────────
-WIFI_SSID = "DESKTOP-Daisu"
+WIFI_SSID = "Nothing 4a Pro"
 WIFI_PASSWORD = "hlothisisme:)"
 
 MQTT_BROKER = "99db9c66011f4f0d955e8e8b8fade3cd.s1.eu.hivemq.cloud"
