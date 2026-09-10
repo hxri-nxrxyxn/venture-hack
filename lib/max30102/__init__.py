@@ -559,12 +559,17 @@ class MAX30102(object):
 
     # Low-level I2C Communication
     def i2c_read_register(self, REGISTER, n_bytes=1):
-        self._i2c.writeto(self.i2c_address, bytearray([REGISTER]))
-        return self._i2c.readfrom(self.i2c_address, n_bytes)
+        try:
+            self._i2c.writeto(self.i2c_address, bytearray([REGISTER]))
+            return self._i2c.readfrom(self.i2c_address, n_bytes)
+        except OSError:
+            return b'\x00' * n_bytes
 
     def i2c_set_register(self, REGISTER, VALUE):
-        self._i2c.writeto(self.i2c_address, bytearray([REGISTER, VALUE]))
-        return
+        try:
+            self._i2c.writeto(self.i2c_address, bytearray([REGISTER, VALUE]))
+        except OSError:
+            pass
 
     # Given a register, read it, mask it, and then set the thing
     def set_bitmask(self, REGISTER, MASK, NEW_VALUES):
@@ -647,8 +652,11 @@ class MAX30102(object):
     # Polls the sensor for new data
     def check(self):
         # Call continuously to poll the sensor for new data.
-        read_pointer = ord(self.get_read_pointer())
-        write_pointer = ord(self.get_write_pointer())
+        try:
+            read_pointer = ord(self.get_read_pointer())
+            write_pointer = ord(self.get_write_pointer())
+        except (OSError, Exception):
+            return 0
 
         # Do we have new data?
         if read_pointer != write_pointer:
@@ -661,8 +669,13 @@ class MAX30102(object):
 
             for i in range(number_of_samples):
                 # Read a number of bytes equal to activeLEDs*3 (= 1 sample)
-                fifo_bytes = self.i2c_read_register(MAX30105_FIFO_DATA,
-                                                    self._multi_led_read_mode)
+                try:
+                    fifo_bytes = self.i2c_read_register(MAX30105_FIFO_DATA,
+                                                        self._multi_led_read_mode)
+                    if len(fifo_bytes) < self._multi_led_read_mode:
+                        break
+                except (OSError, Exception):
+                    break
 
                 # Convert the readings from bytes to integers, depending
                 # on the number of active LEDs
