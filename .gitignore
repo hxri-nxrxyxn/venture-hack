@@ -1,0 +1,22 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.mpy
+
+# Virtual Environments
+.venv/
+venv/
+env/
+bin/
+include/
+lib64/
+pyvenv.cfg
+.lock
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.bak

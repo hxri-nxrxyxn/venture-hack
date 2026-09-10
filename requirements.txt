@@ -1,0 +1,4 @@
+adafruit-ampy>=1.1.0
+esptool>=4.0
+mpy-cross>=1.20
+pyserial>=3.5
