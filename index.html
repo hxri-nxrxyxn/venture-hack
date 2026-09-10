@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leaf Health & NDVI Monitor</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1416;
+      --card-bg: #182024;
+      --border: #263339;
+      --text: #e2ebf0;
+      --text-muted: #8ca0aa;
+      --primary: #2ea043;
+      --warning: #e3b341;
+      --danger: #f85149;
+      --accent: #58a6ff;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 16px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .badge {
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge.disconnected { background: #3d1c1d; color: #ff8b8b; }
+    .badge.connecting { background: #3d311d; color: #ffd166; }
+    .badge.connected { background: #1a3d24; color: #7ee787; }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .form-group {
+      margin-bottom: 10px;
+    }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    input {
+      width: 100%;
+      padding: 8px 10px;
+      background: #090e10;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    button.disconnect {
+      background: var(--danger);
+    }
+
+    /* Telemetry Display */
+    .ndvi-hero {
+      text-align: center;
+      padding: 16px 0 8px 0;
+    }
+    .ndvi-label {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .ndvi-value {
+      font-size: 4rem;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1;
+      font-family: monospace;
+      letter-spacing: -1px;
+    }
+    .leaf-status-tag {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      background: #1f2d24;
+      color: #7ee787;
+      border: 1px solid #2d4535;
+    }
+    .leaf-status-tag.warn {
+      background: #362f1c;
+      color: #ffd166;
+      border-color: #594c25;
+    }
+    .leaf-status-tag.danger {
+      background: #3d1c1d;
+      color: #ff8b8b;
+      border-color: #5c2628;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 16px;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+    }
+    .metric-box {
+      background: #11171a;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+    }
+    .metric-title {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .metric-num {
+      font-size: 1.3rem;
+      font-weight: 600;
+      font-family: monospace;
+      margin-top: 4px;
+    }
+
+    /* Live Feed */
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .clear-btn {
+      width: auto;
+      padding: 2px 10px;
+      font-size: 0.75rem;
+      background: #202b30;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    #log {
+      height: 140px;
+      background: #090e10;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: #7ee787;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Leaf Health & NDVI</h1>
+    <span id="connStatus" class="badge disconnected">Disconnected</span>
+  </header>
+
+  <!-- Broker Configuration -->
+  <div class="card" id="configCard">
+    <div class="grid-2">
+      <div class="form-group">
+        <label for="username">HiveMQ Username</label>
+        <input type="text" id="username" value="hakku04" placeholder="Username" autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label for="password">HiveMQ Password</label>
+        <input type="password" id="password" value="Hari@2004" placeholder="Password" autocomplete="current-password" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="topic">MQTT Topic</label>
+      <input type="text" id="topic" value="esptool/sensor/data" />
+    </div>
+    <button id="btnConnect" onclick="toggleConnect()">Connect to Broker</button>
+  </div>
+
+  <!-- Primary Leaf Telemetry -->
+  <div class="card">
+    <div class="ndvi-hero">
+      <div class="ndvi-label">NDVI (Vegetation Index)</div>
+      <div id="ndviVal" class="ndvi-value">--.---</div>
+      <div>
+        <span id="leafStatus" class="leaf-status-tag">Waiting for data...</span>
+      </div>
+      <div id="packetStats" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 8px;">
+        Received: <span id="pktCount" style="color:var(--text); font-weight:600;">0</span> packets &bull; <span id="lastTime">Awaiting stream...</span>
+      </div>
+    </div>
+
+    <div class="metrics-grid">
+      <div class="metric-box">
+        <div class="metric-title">SPAD Chlorophyll</div>
+        <div class="metric-num" id="spadVal">--</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-title">RVI (NIR / RED)</div>
+        <div class="metric-num" id="rviVal">--</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-title">NIR (880nm) Counts</div>
+        <div class="metric-num" id="irVal">--</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-title">RED (660nm) Counts</div>
+        <div class="metric-num" id="redVal">--</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Realtime Stream Log -->
+  <div class="card">
+    <div class="log-header">
+      <label style="margin:0;">Live Telemetry Stream</label>
+      <button class="clear-btn" onclick="clearLog()">Clear</button>
+    </div>
+    <div id="log"></div>
+  </div>
+
+  <script>
+    const BROKER_HOST = "99db9c66011f4f0d955e8e8b8fade3cd.s1.eu.hivemq.cloud";
+    const BROKER_PORT = 8884;
+    const BROKER_PATH = "/mqtt";
+
+    let client = null;
+
+    window.addEventListener("DOMContentLoaded", () => {
+      const savedUser = localStorage.getItem("hivemq_user");
+      const savedPass = localStorage.getItem("hivemq_pass");
+      const savedTopic = localStorage.getItem("hivemq_topic");
+      if (savedUser) document.getElementById("username").value = savedUser;
+      if (savedPass) document.getElementById("password").value = savedPass;
+      if (savedTopic) document.getElementById("topic").value = savedTopic;
+
+      // Auto-connect
+      connectMqtt();
+    });
+
+    function setStatus(state, text) {
+      const badge = document.getElementById("connStatus");
+      badge.className = `badge ${state}`;
+      badge.textContent = text || state;
+    }
+
+    function logMsg(msg) {
+      const logBox = document.getElementById("log");
+      const time = new Date().toLocaleTimeString();
+      logBox.textContent += `[${time}] ${msg}\n`;
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById("log").textContent = "";
+    }
+
+    function toggleConnect() {
+      if (client && client.connected) {
+        disconnectMqtt();
+      } else {
+        connectMqtt();
+      }
+    }
+
+    function connectMqtt() {
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+      const topic = document.getElementById("topic").value.trim() || "esptool/sensor/data";
+
+      if (!username || !password) {
+        alert("Please enter your HiveMQ username and password.");
+        return;
+      }
+
+      localStorage.setItem("hivemq_user", username);
+      localStorage.setItem("hivemq_pass", password);
+      localStorage.setItem("hivemq_topic", topic);
+
+      setStatus("connecting", "Connecting...");
+      logMsg(`Connecting to wss://${BROKER_HOST}:${BROKER_PORT}${BROKER_PATH}...`);
+
+      const options = {
+        protocol: "wss",
+        hostname: BROKER_HOST,
+        port: BROKER_PORT,
+        path: BROKER_PATH,
+        clean: true,
+        connectTimeout: 8000,
+        reconnectPeriod: 2000,
+        clientId: "web_leaf_" + Math.random().toString(16).substr(2, 8),
+        username: username,
+        password: password,
+      };
+
+      try {
+        client = mqtt.connect(options);
+
+        client.on("connect", () => {
+          setStatus("connected", "Connected");
+          document.getElementById("btnConnect").textContent = "Disconnect";
+          document.getElementById("btnConnect").classList.add("disconnect");
+          logMsg("Connected to HiveMQ Cloud TLS WebSockets!");
+
+          client.subscribe(topic, { qos: 0 }, (err) => {
+            if (err) {
+              logMsg("Subscription error: " + err.message);
+            } else {
+              logMsg(`Subscribed to topic: ${topic}`);
+            }
+          });
+        });
+
+        let totalPackets = 0;
+        client.on("message", (recvTopic, payload) => {
+          totalPackets++;
+          document.getElementById("pktCount").textContent = totalPackets;
+          document.getElementById("lastTime").textContent = "Last: " + new Date().toLocaleTimeString();
+          const raw = payload.toString();
+          logMsg(raw);
+
+          try {
+            const d = JSON.parse(raw);
+            const ndviElem = document.getElementById("ndviVal");
+            const statusElem = document.getElementById("leafStatus");
+            const spadElem = document.getElementById("spadVal");
+            const rviElem = document.getElementById("rviVal");
+            const irElem = document.getElementById("irVal");
+            const redElem = document.getElementById("redVal");
+
+            if (d.ndvi !== undefined) {
+              ndviElem.textContent = (d.ndvi >= 0 ? "+" : "") + Number(d.ndvi).toFixed(3);
+              if (d.ndvi >= 0.45) {
+                ndviElem.style.color = "#2ea043";
+              } else if (d.ndvi >= 0.20) {
+                ndviElem.style.color = "#e3b341";
+              } else {
+                ndviElem.style.color = "#f85149";
+              }
+            }
+
+            if (d.status) {
+              statusElem.textContent = d.status;
+              statusElem.className = "leaf-status-tag";
+              if (d.status.includes("Moderate") || d.status.includes("Chlorotic")) {
+                statusElem.classList.add("warn");
+              } else if (d.status.includes("Necrotic") || d.status.includes("Dead") || d.status.includes("Saturation")) {
+                statusElem.classList.add("danger");
+              }
+            }
+
+            if (d.spad !== undefined) spadElem.textContent = d.spad;
+            if (d.rvi !== undefined) rviElem.textContent = d.rvi;
+            if (d.ir !== undefined) irElem.textContent = d.ir.toLocaleString();
+            if (d.red !== undefined) redElem.textContent = d.red.toLocaleString();
+
+          } catch (e) {
+            document.getElementById("leafStatus").textContent = raw;
+          }
+        });
+
+        client.on("error", (err) => {
+          setStatus("disconnected", "Error");
+          logMsg("MQTT Error: " + (err.message || err));
+        });
+
+        client.on("close", () => {
+          setStatus("disconnected", "Disconnected");
+          document.getElementById("btnConnect").textContent = "Connect to Broker";
+          document.getElementById("btnConnect").classList.remove("disconnect");
+        });
+
+      } catch (err) {
+        setStatus("disconnected", "Error");
+        logMsg("Exception: " + err.message);
+      }
+    }
+
+    function disconnectMqtt() {
+      if (client) {
+        logMsg("Disconnecting...");
+        client.end(true, () => {
+          setStatus("disconnected", "Disconnected");
+          document.getElementById("btnConnect").textContent = "Connect to Broker";
+          document.getElementById("btnConnect").classList.remove("disconnect");
+          logMsg("Disconnected.");
+        });
+      }
+    }
+  </script>
+</body>
+</html>

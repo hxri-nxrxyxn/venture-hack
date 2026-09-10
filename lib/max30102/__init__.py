@@ -153,7 +153,7 @@ SLOT_GREEN_PILOT = 0x07
 MAX_30105_EXPECTED_PART_ID = 0x15
 
 # Size of the queued readings
-STORAGE_QUEUE_SIZE = 4
+STORAGE_QUEUE_SIZE = 32
 
 
 # Data structure to hold the last readings
