@@ -64,7 +64,8 @@ venture-hack/
 └── examples/
     ├── basic_reading.py        # Streams raw RED & IR optical readings
     ├── heart_rate_bpm.py       # Live BPM estimation & pulse detection
-    └── leaf_health_ndvi.py     # Plant leaf health & chlorophyll (NDVI) analyzer
+    ├── leaf_health_ndvi.py     # Plant leaf health & chlorophyll (NDVI) analyzer (MAX30100 & MAX30102)
+    └── leaf_health_max30102.py # Plant leaf health analyzer dedicated for MAX30102
 ```
 
 ---
