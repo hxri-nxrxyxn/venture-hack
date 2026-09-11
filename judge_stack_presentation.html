@@ -274,7 +274,7 @@
       <div class="card-title">🎯 The Core Problem & Our Breakthrough Solution</div>
       <p>
         Traditional soil/foliar testing takes <strong>7 to 14 days</strong> in wet-chemistry labs and is inaccessible to smallholder farmers. Proprietary SPAD meters cost <strong>$2,500+</strong> and only output a single chlorophyll number with zero actionable guidance. 
-        <strong>Our Stack:</strong> A sub-$10 dual-wavelength edge sensor (MAX30102 + ESP8266) deconvolutes the complete macronutrient ionome (<strong>N, P, K, Ca, Mg</strong>) using <strong>Partial Least Squares Regression (PLSR)</strong> and instantly retrieves government-certified remediation from our scraped <strong>1,338-record TNAU database</strong>.
+        <strong>Our Stack:</strong> A sub-$10 dual-wavelength edge sensor (MAX30102 + ESP8266) deconvolutes the complete macronutrient ionome (<strong>N, P, K, Ca, Mg</strong>) using <strong>Partial Least Squares Regression (PLSR)</strong> and triggers an <strong>n8n workflow</strong> with <strong>pgvector in PostgreSQL</strong> to retrieve certified remediation from our scraped <strong>1,338-record TNAU database</strong>.
       </p>
     </div>
 
@@ -301,8 +301,8 @@
       </div>
       <div class="pipe-arrow">➔</div>
       <div class="pipe-step">
-        <div class="step-title">5. TNAU RAG Engine</div>
-        <div class="step-desc">1,338 Curated Rows<br/>Exact Crop Dosages</div>
+        <div class="step-title">5. n8n + pgvector</div>
+        <div class="step-desc">Workflow Automation<br/>pgvector Cosine Search</div>
       </div>
       <div class="pipe-arrow">➔</div>
       <div class="pipe-step">
@@ -608,15 +608,15 @@
 
     <div class="grid-2">
       <div class="card">
-        <div class="card-title">🤖 Grounded RAG Prescriptive Engine</div>
+        <div class="card-title">🤖 n8n Workflow & pgvector Architecture</div>
         <p>
-          Generic LLMs frequently hallucinate fertilizer concentrations, risking chemical leaf burns or under-dosing. Our RAG engine enforces:
+          Generic LLMs frequently hallucinate fertilizer dosages. Our architecture eliminates hallucination using an automated <strong>n8n workflow</strong> backed by <strong>PostgreSQL with pgvector</strong>:
         </p>
         <ul>
-          <li><strong>Deficiency Trigger</strong>: Activated when predicted nutrient falls below critical threshold $\tau_{\text{crit}}$ (e.g. N < 2.50%).</li>
-          <li><strong>Deterministic Retrieval</strong>: Matches exact host crop and nutrient in <code>TOTAL_all_in_one.csv</code>.</li>
-          <li><strong>Actionable Prescriptions</strong>: Outputs soil split timing (kg/ha) and foliar dilution ratios (% and g/L).</li>
-          <li><strong>CLI Executable</strong>: Run <code>python3 rag_engine.py Rice 0.119 2.4 168200 132450</code> for immediate clinical verification.</li>
+          <li><strong>Event Ingestion in n8n</strong>: n8n receives incoming MQTT sensor packets or webhook payloads and triggers upon detecting a deficient foliar element.</li>
+          <li><strong>pgvector Semantic Retrieval</strong>: PostgreSQL with <code>pgvector</code> indexes all 1,338 TNAU records using vector embeddings. Executes hybrid cosine distance search combined with exact metadata filtering on <code>crop</code> and <code>nutrient</code>.</li>
+          <li><strong>Context Injection</strong>: n8n constructs a strictly bounded prompt with TNAU context, preventing the LLM from inventing dosages.</li>
+          <li><strong>Instant Advisory Delivery</strong>: Outputs exact soil split schedules (kg/ha) and foliar dilution ratios (% and g/L) directly to the mobile dashboard.</li>
         </ul>
       </div>
 

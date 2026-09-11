@@ -64,7 +64,7 @@ We engineered an \textbf{end-to-end open hardware and AI stack}:
     \item \textbf{Point-of-Care Hardware}: A sub-\$10 sensor node (MAX30102 + ESP8266/ESP32) emitting dual wavelengths ($660\text{ nm}$ Red \& $880\text{ nm}$ NIR) to measure leaf transmittance and internal cell scattering non-destructively in \textbf{sub-second time}.
     \item \textbf{Multivariate Chemometrics (PLSR)}: Preprocessing via SNV, MSC, and Savitzky-Golay 2nd derivatives + Partial Least Squares Regression (PLSR) to predict the discrete foliar ionome: \textbf{Nitrogen (N), Phosphorus (P), Potassium (K), Calcium (Ca), and Magnesium (Mg)}.
     \item \textbf{TNAU Agronomic Knowledge Base}: We scraped and structured \textbf{1,338 official diagnostic records} across \textbf{104 crops} and \textbf{19 nutrients} from the Tamil Nadu Agricultural University (TNAU) Agritech Portal.
-    \item \textbf{Grounded RAG Prescriptions}: A generative engine that eliminates AI hallucination by retrieving exact government-certified dosages (soil urea kg/ha, foliar DAP \%, CaCl$_2$ sprays, split intervals).
+    \item \textbf{n8n + pgvector Grounded RAG}: Automated workflow orchestrated in \textbf{n8n} utilizing \textbf{PostgreSQL with pgvector} for semantic embeddings and hybrid filtering over 1,338 TNAU records, eliminating AI hallucination by retrieving exact government-certified dosages (soil urea kg/ha, foliar DAP \%, CaCl$_2$ sprays, split intervals).
     \item \textbf{Enterprise Cloud Telemetry}: Live streaming via HiveMQ Cloud TLS 8883 MQTT with SNI routing to an Android-ready real-time dashboard.
 \end{enumerate}
 \end{tcolorbox}
@@ -85,8 +85,8 @@ We engineered an \textbf{end-to-end open hardware and AI stack}:
     \node[block, right=1.2cm of cloud] (plsr) {\textbf{PLSR Inference}\\SNV + Savitzky-Golay\\N, P, K, Ca, Mg Vector};
 
     \node[db_node, below=1.2cm of plsr] (tnau) {\textbf{TNAU Database}\\1,338 Curated Records\\104 Crops $\cdot$ 19 Nutrients};
-    \node[block, left=1.2cm of tnau] (rag) {\textbf{Grounded RAG}\\Deficiency Trigger\\Exact TNAU Retrieval};
-    \node[block, left=1.2cm of rag] (presc) {\textbf{Clinical Prescription}\\Soil Dosage (kg/ha)\\Foliar Dilution (\% / g/L)};
+    \node[block, left=1.2cm of tnau] (rag) {\textbf{n8n + pgvector}\\Cosine Similarity Query\\Hybrid Crop Filter};
+    \node[block, left=1.2cm of rag] (presc) {\textbf{Clinical Prescription}\\Grounded TNAU Dosages\\Soil kg/ha \& Foliar \%};
     \node[block, left=1.2cm of presc] (app) {\textbf{Android App / Web}\\Live Telemetry \& Badges\\Sub-200 ms Latency};
 
     \draw[arr] (sensor) -- (edge);
@@ -301,24 +301,18 @@ Comprises \textbf{1,338 records} across \textbf{104 crops} and \textbf{19 nutrie
 \vspace{0.4cm}
 
 \begin{minipage}[t]{0.48\textwidth}
-\begin{tcolorbox}[colback=white,colframe=primary,title=\textbf{Grounded RAG Prescription Pipeline},arc=2mm]
-\textbf{How We Prevent AI Hallucinations}:
-Standard LLMs hallucinate agrochemical dosages, risking severe foliar chemical burns. Our pipeline enforces strict retrieval grounding:
+\begin{tcolorbox}[colback=white,colframe=primary,title=\textbf{n8n Workflow \& pgvector Retrieval Architecture},arc=2mm]
+\textbf{How We Eliminate AI Hallucinations via n8n + pgvector}:
+Standard LLMs hallucinate agrochemical dosages, risking severe foliar chemical burns. Our pipeline uses an event-driven \textbf{n8n workflow} connected to \textbf{PostgreSQL pgvector}:
 \begin{enumerate}[leftmargin=*]
-    \item \textbf{Trigger}: Predicted nutrient falls below critical threshold $\tau_{\text{crit}}$ (e.g., predicted N = $0.78\% < 2.50\%$).
-    \item \textbf{Deterministic Retrieval}: Extracts matching TNAU remedies from \texttt{TOTAL\_all\_in\_one.csv} by Host Crop and Element.
-    \item \textbf{System Constraints}: The prompt forbids ungrounded advice and formats exact soil kg/ha dosages, foliar dilutions, and safety intervals.
+    \item \textbf{Event Ingestion (n8n)}: n8n listens to MQTT events or webhooks from the edge and triggers upon detecting a deficient nutrient ($\tau_{\text{crit}}$).
+    \item \textbf{Vector Similarity (pgvector)}: Embeddings of all 1,338 TNAU records are indexed in PostgreSQL using \texttt{pgvector} (HNSW/IVFFlat cosine distance). n8n executes a hybrid query:
+    \begin{equation*}
+        \min_{\mathbf{v}} \|\mathbf{v}_{\text{query}} - \mathbf{v}_{\text{doc}}\|^2 \quad \text{s.t. } \text{crop} = \text{target}
+    \end{equation*}
+    \item \textbf{Grounded Prompt Injection}: n8n binds the retrieved TNAU records directly into the LLM context, forbidding ungrounded dosages.
+    \item \textbf{Output Delivery}: Formulates exact soil split timing (kg/ha) and foliar dilution (\% and g/L) and pushes directly to the mobile dashboard.
 \end{enumerate}
-
-\textbf{CLI Engine Executable}:
-Run live queries across crops with \texttt{rag\_engine.py}:
-\begin{lstlisting}[language=bash]
-# Example: Deficient Rice test
-$ python3 rag_engine.py Rice 0.119 2.4 168200 132450
-[!] REMEDIATION: NITROGEN IN RICE
-    Soil: Urea @ 330 kg/ha in 3 splits
-    Foliar: Urea 1% (10 g/L) weekly
-\end{lstlisting}
 \end{tcolorbox}
 \end{minipage}
 \hfill

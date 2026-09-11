@@ -72,7 +72,7 @@
 \maketitle
 
 \begin{abstract}
-Foliar nutrient diagnosis is a foundational pillar of precision agriculture, yet conventional laboratory wet-chemistry methods (Kjeldahl digestion, ICP-OES spectroscopy) require destructive sampling, expensive instrumentation, and diagnostic delays of 7--14 days. This paper introduces an end-to-end, non-destructive optical sensing and generative agronomic advisory platform configured in a landscape cyber-physical architecture. The hardware sensing tier uses a dual-wavelength optical sensor ($\lambda_1 = 660\text{ nm}$ Red, $\lambda_2 = 880\text{ nm}$ NIR) interfaced with an Espressif ESP8266/ESP32 edge microcontroller running an ultra-stable MicroPython driver with a 32-sample circular FIFO queue. To overcome the high collinearity and overlapping optical absorption of discrete plant macronutrients, we develop a multivariate chemometric pipeline utilizing Standard Normal Variate (SNV) normalization, Multiplicative Scatter Correction (MSC), Savitzky-Golay polynomial derivatives, and Partial Least Squares Regression (PLSR) to deconvolute foliar Nitrogen (N), Phosphorus (P), Potassium (K), Calcium (Ca), and Magnesium (Mg) concentrations. Predicted nutrient vectors are synthesized into grounded clinical recommendations using a domain-specific Retrieval-Augmented Generation (RAG) engine backed by an extensive, scraped knowledge base of 1,338 records from the Tamil Nadu Agricultural University (TNAU) Agritech Portal across 104 crops and 19 nutrients. Telemetry is streamed over enterprise HiveMQ Cloud TLS 8883 MQTT with Server Name Indication (SNI) to an Android-compatible real-time dashboard. In-field experimental trials confirm robust acquisition (NDVI up to $+0.776$, SPAD equivalent $20.7$, IR count $244,532$, Red count $35,959$) with sub-$200\text{ ms}$ round-trip latency, establishing instant, point-of-care foliar health analysis and regulatory-compliant fertilizer remediation for smallholder farmers.
+Foliar nutrient diagnosis is a foundational pillar of precision agriculture, yet conventional laboratory wet-chemistry methods (Kjeldahl digestion, ICP-OES spectroscopy) require destructive sampling, expensive instrumentation, and diagnostic delays of 7--14 days. This paper introduces an end-to-end, non-destructive optical sensing and generative agronomic advisory platform configured in a landscape cyber-physical architecture. The hardware sensing tier uses a dual-wavelength optical sensor ($\lambda_1 = 660\text{ nm}$ Red, $\lambda_2 = 880\text{ nm}$ NIR) interfaced with an Espressif ESP8266/ESP32 edge microcontroller running an ultra-stable MicroPython driver with a 32-sample circular FIFO queue. To overcome the high collinearity and overlapping optical absorption of discrete plant macronutrients, we develop a multivariate chemometric pipeline utilizing Standard Normal Variate (SNV) normalization, Multiplicative Scatter Correction (MSC), Savitzky-Golay polynomial derivatives, and Partial Least Squares Regression (PLSR) to deconvolute foliar Nitrogen (N), Phosphorus (P), Potassium (K), Calcium (Ca), and Magnesium (Mg) concentrations. Predicted nutrient vectors are synthesized into grounded clinical recommendations using an automated n8n workflow and PostgreSQL pgvector semantic retrieval engine backed by an extensive, scraped knowledge base of 1,338 records from the Tamil Nadu Agricultural University (TNAU) Agritech Portal across 104 crops and 19 nutrients. Telemetry is streamed over enterprise HiveMQ Cloud TLS 8883 MQTT with Server Name Indication (SNI) to an Android-compatible real-time dashboard. In-field experimental trials confirm robust acquisition (NDVI up to $+0.776$, SPAD equivalent $20.7$, IR count $244,532$, Red count $35,959$) with sub-$200\text{ ms}$ round-trip latency, establishing instant, point-of-care foliar health analysis and regulatory-compliant fertilizer remediation for smallholder farmers.
 \end{abstract}
 
 \textbf{Keywords}---Precision Agriculture, Foliar Ionome, Dual-Wavelength Reflectance, Partial Least Squares Regression (PLSR), Retrieval-Augmented Generation (RAG), MicroPython, HiveMQ MQTT, TNAU Agritech, Landscape Data Architecture.
@@ -339,7 +339,7 @@ Standard Large Language Models (LLMs) frequently hallucinate agrochemical dosage
     \node[block, right=0.8cm of mqtt] (plsr) {\textbf{PLSR Inference}\\\textit{SNV + Savitzky-Golay}\\N, P, K, Ca, Mg Vector};
     
     \node[db_node, below=0.9cm of plsr] (db) {\textbf{TNAU Agritech DB}\\\textit{TOTAL\_all\_in\_one.csv}\\1,338 Curated Records};
-    \node[block, left=0.8cm of db] (retriever) {\textbf{Hybrid RAG Retriever}\\\textit{Crop + Nutrient Filter}\\Cosine Re-ranking};
+    \node[block, left=0.8cm of db] (retriever) {\textbf{n8n + pgvector}\\\textit{PostgreSQL Vector Index}\\Cosine Semantic Search};
     \node[block, left=0.8cm of retriever] (llm) {\textbf{Generative Engine}\\\textit{Grounded Advisory}\\Dosage, Dilution, Timing};
     \node[block, left=0.8cm of llm] (ui) {\textbf{Client Dashboard}\\\textit{Android WebView / HTML5}\\Live Telemetry \& Rx};
 
@@ -356,18 +356,16 @@ Standard Large Language Models (LLMs) frequently hallucinate agrochemical dosage
 \label{fig:rag_pipeline}
 \end{figure*}
 
-\subsection{Retrieval \& Prompt Formulation}
-Upon edge ingest, if a predicted nutrient falls below critical threshold $\tau_{\text{crit}}$, a retrieval payload is generated:
-\begin{lstlisting}[language=Python, caption={Hybrid Agronomic Retrieval Filter}]
-def retrieve_tnau_remedy(crop_name, deficient_nutrient, db):
-    candidates = [
-        row for row in db 
-        if row["Crop"].lower() == crop_name.lower() 
-        and row["Nutrient_Normalized"].lower() == deficient_nutrient.lower()
-        and "remedy" in row["Item"].lower()
-    ]
-    return candidates if candidates else fallback_group_query(crop_name, deficient_nutrient)
-\end{lstlisting}
+\subsection{n8n Workflow Automation \& pgvector Semantic Retrieval}
+The RAG pipeline is orchestrated using an event-driven \textbf{n8n workflow} integrated with \textbf{PostgreSQL pgvector}:
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{MQTT Ingestion}: n8n subscribes to incoming HiveMQ Cloud MQTT telemetry or edge webhooks, extracting predicted foliar ionome vectors.
+    \item \textbf{pgvector Hybrid Search}: All 1,338 TNAU records are embedded and stored in PostgreSQL using the \texttt{pgvector} extension. When a nutrient drops below critical threshold $\tau_{\text{crit}}$, n8n queries the database using cosine distance:
+    \begin{equation*}
+        \min_{\mathbf{v} \in \mathcal{D}} \left( 1 - \frac{\mathbf{v}_{\text{query}} \cdot \mathbf{v}}{\|\mathbf{v}_{\text{query}}\| \|\mathbf{v}\|} \right) \quad \text{subject to } \texttt{crop} = \text{target}
+    \end{equation*}
+    \item \textbf{Context Grounding}: n8n injects retrieved government records into the LLM prompt, enforcing strict fidelity to official chemical formulations.
+\end{enumerate}
 
 The prompt incorporates explicit guardrails:
 \begin{quote}
